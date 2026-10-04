@@ -1,0 +1,28 @@
+# Tune limits to match local machine. On Docker Desktop / Compose v2, deploy.resources
+# applies when compatibility mode is enabled: COMPOSE_COMPATIBILITY=1
+
+services:
+  api:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  db:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M

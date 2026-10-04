@@ -128,6 +128,17 @@ Important variables:
 
 
 
+## Load testing (restricted resources)
+
+See [docs/load-testing.md](docs/load-testing.md). Quick smoke test:
+
+```bash
+docker compose up -d --build
+# optional caps: COMPOSE_COMPATIBILITY=1 docker compose -f docker-compose.yml -f docker-compose.limits.yml up -d --build
+chmod +x scripts/load-smoke.sh
+CONCURRENCY=100 BASE_URL=http://localhost:8080 ./scripts/load-smoke.sh
+```
+
 ## Database migrations (Docker)
 
 `docker compose up` runs a one-shot **`migrate`** service after Postgres is healthy. It applies any new `migrations/*_*.up.sql` files and records them in `schema_migrations` (safe on every up; already-applied versions are skipped).
