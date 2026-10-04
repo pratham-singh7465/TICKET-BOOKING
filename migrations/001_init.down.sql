@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS seats;
+DROP TABLE IF EXISTS shows;   

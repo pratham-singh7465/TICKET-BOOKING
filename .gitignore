@@ -1,0 +1,6 @@
+bin/
+*.exe
+.env
+pgdata/
+coverage.out
+.dockerignore
