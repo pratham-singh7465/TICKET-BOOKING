@@ -43,7 +43,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Show, error) {
 		perUserLimit = 4
 	}
 
-	seatCodes, err := normalizeSeatCodes(in.Seats)
+	seatCodes, err := NormalizeSeatCodes(in.Seats)
 	if err != nil {
 		return Show{}, err
 	}
@@ -51,7 +51,8 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Show, error) {
 	return s.repo.Create(ctx, name, in.PricePaise, perUserLimit, seatCodes)
 }
 
-func normalizeSeatCodes(seats []string) ([]string, error) {
+// NormalizeSeatCodes validates and deduplicates seat codes (sorted for stable locking order).
+func NormalizeSeatCodes(seats []string) ([]string, error) {
 	if len(seats) == 0 {
 		return nil, fmt.Errorf("at least one seat is required")
 	}

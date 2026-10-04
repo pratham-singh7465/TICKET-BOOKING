@@ -10,12 +10,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/pratham-singh/ticket-booking/internal/auth"
 	"github.com/pratham-singh/ticket-booking/internal/config"
 	"github.com/pratham-singh/ticket-booking/internal/handler"
 	"github.com/pratham-singh/ticket-booking/internal/middleware"
 	"github.com/pratham-singh/ticket-booking/internal/platform/database"
 	"github.com/pratham-singh/ticket-booking/internal/platform/logging"
+	redisstore "github.com/pratham-singh/ticket-booking/internal/platform/redis"
+	"github.com/pratham-singh/ticket-booking/internal/reservation"
 	"github.com/pratham-singh/ticket-booking/internal/show"
 )
 
@@ -38,6 +41,20 @@ func main() {
 	}
 	defer pool.Close()
 
+	var redisClient *redis.Client
+	if cfg.Redis.URL != "" {
+		rdb, err := redisstore.NewClient(ctx, cfg.Redis.URL)
+		if err != nil {
+			logger.Error("redis connection failed", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		defer func() { _ = rdb.Close() }()
+		redisClient = rdb
+		logger.Info("redis connected", slog.String("url", cfg.Redis.URL))
+	} else {
+		logger.Warn("REDIS_URL not set; using in-memory rate limit only (no idempotency cache)")
+	}
+
 	tokenValidator := auth.NewPostgresValidator(pool)
 
 	showRepo := show.NewRepository(pool)
@@ -46,7 +63,13 @@ func main() {
 	healthHandler := handler.NewHealthHandler(pool, cfg.AppName)
 	meHandler := handler.NewMeHandler()
 	showHandler := handler.NewShowHandler(showSvc)
-	router := handler.NewRouter(healthHandler, meHandler, showHandler, tokenValidator, logger, cfg)
+
+	reserveRepo := reservation.NewRepository(pool, cfg.Reservation.HoldTTL)
+	reserveSvc := reservation.NewService(reserveRepo, cfg.Reservation.PaymentSimDelay)
+	idemStore := redisstore.NewIdempotencyStore(redisClient, cfg.Redis.IdempotencyTTL)
+	reserveHandler := handler.NewReserveHandler(reserveSvc, idemStore)
+
+	router := handler.NewRouter(healthHandler, meHandler, showHandler, reserveHandler, tokenValidator, redisClient, logger, cfg)
 
 	server := &http.Server{
 		Addr:              cfg.HTTP.Addr,

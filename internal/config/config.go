@@ -14,6 +14,18 @@ type Config struct {
 	AdminAPIKey string
 	HTTP        HttpConfig
 	Database    DatabaseConfig
+	Reservation ReservationConfig
+	Redis       RedisConfig
+}
+
+type RedisConfig struct {
+	URL            string
+	IdempotencyTTL time.Duration
+}
+
+type ReservationConfig struct {
+	HoldTTL          time.Duration
+	PaymentSimDelay  time.Duration
 }
 
 type HttpConfig struct {
@@ -130,6 +142,14 @@ func Load() (Config, error) {
 			MaxConnLifetime: durationEnv("DB_MAX_CONN_LIFETIME", 30*time.Minute),
 			MaxConnIdleTime: durationEnv("DB_MAX_CONN_IDLE_TIME", 5*time.Minute),
 			HealthCheck:     durationEnv("DB_HEALTH_CHECK_PERIOD", time.Minute),
+		},
+		Reservation: ReservationConfig{
+			HoldTTL:         durationEnv("HOLD_TTL", 5*time.Minute),
+			PaymentSimDelay: durationEnv("PAYMENT_SIM_DELAY", 0),
+		},
+		Redis: RedisConfig{
+			URL:            envOr("REDIS_URL", ""),
+			IdempotencyTTL: durationEnv("IDEMPOTENCY_CACHE_TTL", 24*time.Hour),
 		},
 	}
 

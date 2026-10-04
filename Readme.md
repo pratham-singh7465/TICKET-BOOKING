@@ -15,7 +15,8 @@ A **high-concurrency seat reservation** system: Postgres for atomicity, idempote
 | Postgres pool + schema migration (init SQL) | Done    |
 | Bearer token auth (`user1`–`user5`, DB-backed) | Done |
 | Admin `POST /api/v1/shows` (create show + seats) | Done |
-| Reserve / cancel / GET show state           | Planned |
+| `POST /api/v1/shows/{id}/reserve` (atomic, idempotent) | Done |
+| Cancel / GET show state                     | Planned |
 
 
 ## HTTP endpoints
@@ -27,6 +28,9 @@ A **high-concurrency seat reservation** system: Postgres for atomicity, idempote
 | `GET`  | `/readyz`  | **Readiness** — pings Postgres                                                          |
 | `GET`  | `/metrics` | Prometheus scrape endpoint (`http_requests_total`, `http_request_duration_seconds`, …). |
 | `POST` | `/api/v1/shows` | **Admin** — create show; header `X-Admin-Key` (see `ADMIN_API_KEY`). |
+| `POST` | `/api/v1/shows/{showID}/reserve` | **User bearer** — hold seats (`status: held`); `Idempotency-Key` header or body. |
+| `POST` | `/api/v1/reservations/{id}/confirm` | **Owner** — after payment → `confirmed`. |
+| `POST` | `/api/v1/reservations/{id}/cancel` | **Owner** — release pending hold. |
 | `GET`  | `/api/v1/me` | **Authenticated** — returns token-derived `user_id` (ignores any user field in body). |
 | `GET`  | `/docs/` | **Swagger UI** — try APIs in the browser (spec at `/openapi.yaml`). |
 | `GET`  | `/openapi.yaml` | OpenAPI 3 spec (source: `internal/apidocs/spec.yaml`). |
@@ -43,7 +47,20 @@ curl -s -X POST http://localhost:8080/api/v1/shows \
   -H "Content-Type: application/json" \
   -H "X-Admin-Key: dev-admin-change-me" \
   -d '{"name":"friday-night","seats":["A1","A2","A3"],"price_paise":25000}'
+
+# Reserve (use show id from create response)
+curl -s -X POST "http://localhost:8080/api/v1/shows/<SHOW_ID>/reserve" \
+  -H "Authorization: Bearer token-user1" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: demo-reserve-1" \
+  -d '{"seats":["A1"]}'
+
+# After payment succeeds (use reservation_id from reserve response)
+curl -s -X POST "http://localhost:8080/api/v1/reservations/<RESERVATION_ID>/confirm" \
+  -H "Authorization: Bearer token-user1"
 ```
+
+**Booking flow:** `reserve` → `held` (pay within `HOLD_TTL`) → `confirm` → `confirmed`; or `cancel` / wait for expiry. All-or-nothing holds; idempotent reserve (Postgres + **Redis** replay cache on retries); **Redis** global rate limit across API replicas. See [docs/reservation-concurrency.md](docs/reservation-concurrency.md).
 
 Open **http://localhost:8080/docs/** for Swagger UI. Use **Authorize** with bearer value `token-user1`, then call `GET /api/v1/me`.
 
@@ -103,6 +120,8 @@ Important variables:
 | `RATE_LIMIT_RPS`   | `200`                                                     | Sustained requests per second           |
 | `RATE_LIMIT_BURST` | `500`                                                     | Burst size                              |
 | `ADMIN_API_KEY`    | (required for create show)                                | Admin `X-Admin-Key` / Bearer for `POST /api/v1/shows` |
+| `REDIS_URL`        | `redis://localhost:6379/0`                                | Distributed rate limit + reserve idempotency cache |
+| `IDEMPOTENCY_CACHE_TTL` | `24h`                                              | Redis TTL for cached `201` reserve responses |
 
 
 

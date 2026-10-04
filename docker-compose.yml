@@ -16,6 +16,16 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   migrate:
     image: postgres:16-alpine
     depends_on:
@@ -50,11 +60,17 @@ services:
       - DB_MAX_CONN_IDLE_TIME=5m
       - RATE_LIMIT_RPS=200
       - RATE_LIMIT_BURST=5000
+      - HOLD_TTL=5m
+      - PAYMENT_SIM_DELAY=0
+      - REDIS_URL=redis://redis:6379/0
+      - IDEMPOTENCY_CACHE_TTL=24h
     depends_on:
       db:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
   prometheus:
     image: prom/prometheus:v2.55.1
