@@ -9,10 +9,11 @@ import (
 )
 
 type Config struct {
-	AppName  string
-	LogLevel string
-	HTTP     HttpConfig
-	Database DatabaseConfig
+	AppName     string
+	LogLevel    string
+	AdminAPIKey string
+	HTTP        HttpConfig
+	Database    DatabaseConfig
 }
 
 type HttpConfig struct {
@@ -109,8 +110,9 @@ func Load() (Config, error) {
 	loadDotEnv()
 
 	cfg := Config{
-		AppName:  envOr("APP_NAME", "ticket-booking"),
-		LogLevel: envOr("LOG_LEVEL", "info"),
+		AppName:     envOr("APP_NAME", "ticket-booking"),
+		LogLevel:    envOr("LOG_LEVEL", "info"),
+		AdminAPIKey: envOr("ADMIN_API_KEY", ""),
 		HTTP: HttpConfig{
 			Addr:              envOr("HTTP_ADDR", ":8080"),
 			ReadHeaderTimeout: durationEnv("HTTP_READ_HEADER_TIMEOUT", 5*time.Second),

@@ -14,7 +14,8 @@ A **high-concurrency seat reservation** system: Postgres for atomicity, idempote
 | Prometheus HTTP metrics                     | Done    |
 | Postgres pool + schema migration (init SQL) | Done    |
 | Bearer token auth (`user1`–`user5`, DB-backed) | Done |
-| Seat hold / book / cancel APIs              | Planned |
+| Admin `POST /api/v1/shows` (create show + seats) | Done |
+| Reserve / cancel / GET show state           | Planned |
 
 
 ## HTTP endpoints
@@ -25,6 +26,7 @@ A **high-concurrency seat reservation** system: Postgres for atomicity, idempote
 | `GET`  | `/healthz` | **Liveness** — process is up                                                            |
 | `GET`  | `/readyz`  | **Readiness** — pings Postgres                                                          |
 | `GET`  | `/metrics` | Prometheus scrape endpoint (`http_requests_total`, `http_request_duration_seconds`, …). |
+| `POST` | `/api/v1/shows` | **Admin** — create show; header `X-Admin-Key` (see `ADMIN_API_KEY`). |
 | `GET`  | `/api/v1/me` | **Authenticated** — returns token-derived `user_id` (ignores any user field in body). |
 | `GET`  | `/docs/` | **Swagger UI** — try APIs in the browser (spec at `/openapi.yaml`). |
 | `GET`  | `/openapi.yaml` | OpenAPI 3 spec (source: `internal/apidocs/spec.yaml`). |
@@ -36,6 +38,11 @@ curl -s http://localhost:8080/healthz
 curl -s http://localhost:8080/readyz
 curl -s http://localhost:8080/metrics | head
 curl -s -H "Authorization: Bearer token-user1" http://localhost:8080/api/v1/me
+
+curl -s -X POST http://localhost:8080/api/v1/shows \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Key: dev-admin-change-me" \
+  -d '{"name":"friday-night","seats":["A1","A2","A3"],"price_paise":25000}'
 ```
 
 Open **http://localhost:8080/docs/** for Swagger UI. Use **Authorize** with bearer value `token-user1`, then call `GET /api/v1/me`.
@@ -95,6 +102,7 @@ Important variables:
 | `LOG_LEVEL`        | `debug` / `info`                                          | slog level                              |
 | `RATE_LIMIT_RPS`   | `200`                                                     | Sustained requests per second           |
 | `RATE_LIMIT_BURST` | `500`                                                     | Burst size                              |
+| `ADMIN_API_KEY`    | (required for create show)                                | Admin `X-Admin-Key` / Bearer for `POST /api/v1/shows` |
 
 
 

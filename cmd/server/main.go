@@ -16,6 +16,7 @@ import (
 	"github.com/pratham-singh/ticket-booking/internal/middleware"
 	"github.com/pratham-singh/ticket-booking/internal/platform/database"
 	"github.com/pratham-singh/ticket-booking/internal/platform/logging"
+	"github.com/pratham-singh/ticket-booking/internal/show"
 )
 
 func main() {
@@ -39,9 +40,13 @@ func main() {
 
 	tokenValidator := auth.NewPostgresValidator(pool)
 
+	showRepo := show.NewRepository(pool)
+	showSvc := show.NewService(showRepo)
+
 	healthHandler := handler.NewHealthHandler(pool, cfg.AppName)
 	meHandler := handler.NewMeHandler()
-	router := handler.NewRouter(healthHandler, meHandler, tokenValidator, logger, cfg)
+	showHandler := handler.NewShowHandler(showSvc)
+	router := handler.NewRouter(healthHandler, meHandler, showHandler, tokenValidator, logger, cfg)
 
 	server := &http.Server{
 		Addr:              cfg.HTTP.Addr,

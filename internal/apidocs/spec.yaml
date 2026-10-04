@@ -11,6 +11,7 @@ servers:
 tags:
   - name: health
   - name: auth
+  - name: admin
   - name: observability
 paths:
   /healthz:
@@ -57,6 +58,38 @@ paths:
       responses:
         "200":
           description: Prometheus text exposition format
+  /api/v1/shows:
+    post:
+      tags: [admin]
+      summary: Create show (admin)
+      description: Inserts a show and all seats in `available` state in one transaction.
+      security:
+        - adminKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateShowRequest"
+      responses:
+        "201":
+          description: Show created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Show"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Admin credentials required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/v1/me:
     get:
       tags: [auth]
@@ -86,7 +119,55 @@ components:
       type: http
       scheme: bearer
       description: "Dev tokens: token-user1 … token-user5"
+    adminKey:
+      type: apiKey
+      in: header
+      name: X-Admin-Key
+      description: "Admin secret (or Authorization Bearer with same value). Set ADMIN_API_KEY in env."
   schemas:
+    CreateShowRequest:
+      type: object
+      required: [name, seats, price_paise]
+      properties:
+        name:
+          type: string
+          example: friday-night
+        seats:
+          type: array
+          items:
+            type: string
+          example: ["A1", "A2", "A3"]
+        price_paise:
+          type: integer
+          format: int64
+          example: 25000
+        per_user_limit:
+          type: integer
+          description: Optional; defaults to 4
+          example: 4
+    Show:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        price_paise:
+          type: integer
+          format: int64
+        per_user_limit:
+          type: integer
+        seats:
+          type: array
+          items:
+            type: object
+            properties:
+              seat_code:
+                type: string
+              status:
+                type: string
+                enum: [available, held, confirmed]
     Error:
       type: object
       properties:

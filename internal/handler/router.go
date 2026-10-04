@@ -15,6 +15,7 @@ import (
 func NewRouter(
 	health *HealthHandler,
 	me *MeHandler,
+	shows *ShowHandler,
 	tokenValidator auth.Validator,
 	logger *slog.Logger,
 	cfg config.Config,
@@ -34,8 +35,12 @@ func NewRouter(
 	RegisterDocs(r)
 
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Use(middleware.Authenticate(tokenValidator))
-		r.Get("/me", me.Me)
+		r.With(middleware.AdminKey(cfg.AdminAPIKey)).Post("/shows", shows.Create)
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Authenticate(tokenValidator))
+			r.Get("/me", me.Me)
+		})
 	})
 
 	return r
