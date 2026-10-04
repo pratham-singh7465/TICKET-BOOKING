@@ -6,16 +6,32 @@ services:
       POSTGRES_PASSWORD: app
       POSTGRES_DB: appdb
     ports:
-      - "5432:5432"
+      # Host 5435 avoids clashing with a local/Windows Postgres on 5432 (DBeaver on Windows).
+      - "5435:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./migrations/001_init.up.sql:/docker-entrypoint-initdb.d/001_init.up.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U app -d appdb"]
       interval: 10s
       timeout: 5s
       retries: 10
-      
+
+  migrate:
+    image: postgres:16-alpine
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: app
+      PGPASSWORD: app
+      PGDATABASE: appdb
+    volumes:
+      - ./migrations:/migrations:ro
+      - ./scripts/docker-migrate.sh:/docker-migrate.sh:ro
+    entrypoint: ["/bin/sh", "/docker-migrate.sh"]
+    restart: "no"
+
   api:
     build:
       context: .
@@ -36,7 +52,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
-  
+      migrate:
+        condition: service_completed_successfully
+
   prometheus:
     image: prom/prometheus:v2.55.1
     ports:
@@ -48,5 +66,3 @@ services:
 
 volumes:
   pgdata:
-
-

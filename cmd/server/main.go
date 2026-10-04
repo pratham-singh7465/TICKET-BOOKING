@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pratham-singh/ticket-booking/internal/auth"
 	"github.com/pratham-singh/ticket-booking/internal/config"
 	"github.com/pratham-singh/ticket-booking/internal/handler"
 	"github.com/pratham-singh/ticket-booking/internal/middleware"
@@ -36,8 +37,11 @@ func main() {
 	}
 	defer pool.Close()
 
+	tokenValidator := auth.NewPostgresValidator(pool)
+
 	healthHandler := handler.NewHealthHandler(pool, cfg.AppName)
-	router := handler.NewRouter(healthHandler, logger, cfg)
+	meHandler := handler.NewMeHandler()
+	router := handler.NewRouter(healthHandler, meHandler, tokenValidator, logger, cfg)
 
 	server := &http.Server{
 		Addr:              cfg.HTTP.Addr,

@@ -4,15 +4,18 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/pratham-singh/ticket-booking/internal/config"
-	"github.com/pratham-singh/ticket-booking/internal/middleware"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/pratham-singh/ticket-booking/internal/auth"
+	"github.com/pratham-singh/ticket-booking/internal/config"
+	"github.com/pratham-singh/ticket-booking/internal/middleware"
 )
 
 func NewRouter(
 	health *HealthHandler,
+	me *MeHandler,
+	tokenValidator auth.Validator,
 	logger *slog.Logger,
 	cfg config.Config,
 ) http.Handler {
@@ -28,6 +31,12 @@ func NewRouter(
 	r.Get("/healthz", health.Liveness)
 	r.Get("/readyz", health.Readiness)
 	r.Handle("/metrics", promhttp.Handler())
+	RegisterDocs(r)
+
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Use(middleware.Authenticate(tokenValidator))
+		r.Get("/me", me.Me)
+	})
 
 	return r
 }

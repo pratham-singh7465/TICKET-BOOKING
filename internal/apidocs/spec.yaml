@@ -1,0 +1,94 @@
+openapi: 3.0.3
+info:
+  title: Ticket Booking API
+  description: |
+    Seat reservation study API. Identity for protected routes comes from
+    `Authorization: Bearer <token>` (e.g. dev token `token-user1` for user `user1`).
+  version: 0.1.0
+servers:
+  - url: http://localhost:8080
+    description: Local
+tags:
+  - name: health
+  - name: auth
+  - name: observability
+paths:
+  /healthz:
+    get:
+      tags: [health]
+      summary: Liveness
+      responses:
+        "200":
+          description: Process is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  app:
+                    type: string
+  /readyz:
+    get:
+      tags: [health]
+      summary: Readiness (DB ping)
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ready
+                  db:
+                    type: string
+                    example: ok
+        "503":
+          description: Database unreachable
+  /metrics:
+    get:
+      tags: [observability]
+      summary: Prometheus metrics
+      responses:
+        "200":
+          description: Prometheus text exposition format
+  /api/v1/me:
+    get:
+      tags: [auth]
+      summary: Current user (token-derived)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Authenticated user id from token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: string
+                    example: user1
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: "Dev tokens: token-user1 … token-user5"
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string

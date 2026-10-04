@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -32,6 +33,29 @@ type DatabaseConfig struct {
 	MaxConnLifetime time.Duration
 	MaxConnIdleTime time.Duration
 	HealthCheck     time.Duration
+}
+
+// loadDotEnv sets env vars from .env when not already set (local dev; Compose still uses real env).
+func loadDotEnv() {
+	data, err := os.ReadFile(".env")
+	if err != nil {
+		return
+	}
+	for line := range strings.SplitSeq(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, val, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		val = strings.TrimSpace(val)
+		if key != "" && os.Getenv(key) == "" {
+			_ = os.Setenv(key, val)
+		}
+	}
 }
 
 func envOr(key, fallback string) string {
@@ -82,6 +106,8 @@ func floatEnv(key string, fallback float64) float64 {
 }
 
 func Load() (Config, error) {
+	loadDotEnv()
+
 	cfg := Config{
 		AppName:  envOr("APP_NAME", "ticket-booking"),
 		LogLevel: envOr("LOG_LEVEL", "info"),
@@ -96,7 +122,7 @@ func Load() (Config, error) {
 			RateLimitBurst:    intEnv("RATE_LIMIT_BURST", 400),
 		},
 		Database: DatabaseConfig{
-			URL:             envOr("DB_URL", "postgres://app:app@localhost:5432/appdb?sslmode=disable"),
+			URL:             envOr("DB_URL", "postgres://app:app@localhost:5435/appdb?sslmode=disable"),
 			MaxConns:        int32Env("DB_MAX_CONNS", 50),
 			MinConns:        int32Env("DB_MIN_CONNS", 10),
 			MaxConnLifetime: durationEnv("DB_MAX_CONN_LIFETIME", 30*time.Minute),
