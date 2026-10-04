@@ -8,7 +8,11 @@ import (
 
 type SeatStatus string
 
-const SeatStatusAvailable SeatStatus = "available"
+const (
+	SeatStatusAvailable SeatStatus = "available"
+	SeatStatusHeld      SeatStatus = "held"
+	SeatStatusConfirmed SeatStatus = "confirmed"
+)
 
 type Show struct {
 	ID             uuid.UUID
@@ -22,4 +26,16 @@ type Show struct {
 type Seat struct {
 	Code   string
 	Status SeatStatus
+}
+
+type SeatCounts struct {
+	Available int
+	Held      int
+	Confirmed int
+	Total     int
+}
+
+type ShowState struct {
+	Show   Show
+	Counts SeatCounts
 }

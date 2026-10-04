@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -49,6 +51,10 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Show, error) {
 	}
 
 	return s.repo.Create(ctx, name, in.PricePaise, perUserLimit, seatCodes)
+}
+
+func (s *Service) GetState(ctx context.Context, id uuid.UUID) (ShowState, error) {
+	return s.repo.GetState(ctx, id)
 }
 
 // NormalizeSeatCodes validates and deduplicates seat codes (sorted for stable locking order).

@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pratham-singh/ticket-booking/internal/platform/database"
 )
 
 type Repository struct {
@@ -77,6 +78,28 @@ func (r *Repository) Create(ctx context.Context, name string, pricePaise int64, 
 		return Show{}, fmt.Errorf("commit: %w", err)
 	}
 	return s, nil
+}
+
+func (r *Repository) GetState(ctx context.Context, id uuid.UUID) (ShowState, error) {
+	if err := database.ExpireExpiredHolds(ctx, r.pool); err != nil {
+		return ShowState{}, fmt.Errorf("expire holds: %w", err)
+	}
+	show, err := r.GetByID(ctx, id)
+	if err != nil {
+		return ShowState{}, err
+	}
+	counts := SeatCounts{Total: len(show.Seats)}
+	for _, seat := range show.Seats {
+		switch seat.Status {
+		case SeatStatusAvailable:
+			counts.Available++
+		case SeatStatusHeld:
+			counts.Held++
+		case SeatStatusConfirmed:
+			counts.Confirmed++
+		}
+	}
+	return ShowState{Show: show, Counts: counts}, nil
 }
 
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (Show, error) {

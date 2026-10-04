@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pratham-singh/ticket-booking/internal/platform/database"
 )
 
 type Repository struct {
@@ -39,7 +40,7 @@ func (r *Repository) Reserve(
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	if err := expireExpiredHolds(ctx, tx); err != nil {
+	if err := database.ExpireExpiredHolds(ctx, tx); err != nil {
 		return Result{}, err
 	}
 
@@ -196,7 +197,7 @@ func (r *Repository) Confirm(ctx context.Context, reservationID uuid.UUID, userI
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	if err := expireExpiredHolds(ctx, tx); err != nil {
+	if err := database.ExpireExpiredHolds(ctx, tx); err != nil {
 		return Result{}, err
 	}
 
@@ -260,7 +261,7 @@ func (r *Repository) Cancel(ctx context.Context, reservationID uuid.UUID, userID
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	if err := expireExpiredHolds(ctx, tx); err != nil {
+	if err := database.ExpireExpiredHolds(ctx, tx); err != nil {
 		return err
 	}
 
@@ -306,36 +307,6 @@ func (r *Repository) Cancel(ctx context.Context, reservationID uuid.UUID, userID
 		return ErrInvalidReservationState
 	}
 	return tx.Commit(ctx)
-}
-
-func expireExpiredHolds(ctx context.Context, tx pgx.Tx) error {
-	const releaseSeats = `
-		UPDATE seats
-		SET status = 'available',
-		    user_id = NULL,
-		    reservation_id = NULL,
-		    held_until = NULL,
-		    version = version + 1
-		WHERE status = 'held'
-		  AND held_until IS NOT NULL
-		  AND held_until < now()
-	`
-	if _, err := tx.Exec(ctx, releaseSeats); err != nil {
-		return fmt.Errorf("expire holds: %w", err)
-	}
-	const cancelRes = `
-		UPDATE reservations r
-		SET status = 'cancelled'
-		WHERE r.status = 'pending'
-		  AND NOT EXISTS (
-		    SELECT 1 FROM seats s
-		    WHERE s.reservation_id = r.id AND s.status = 'held'
-		  )
-	`
-	if _, err := tx.Exec(ctx, cancelRes); err != nil {
-		return fmt.Errorf("cancel expired reservations: %w", err)
-	}
-	return nil
 }
 
 type lockedReservation struct {

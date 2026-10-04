@@ -16,7 +16,8 @@ A **high-concurrency seat reservation** system: Postgres for atomicity, idempote
 | Bearer token auth (`user1`–`user5`, DB-backed) | Done |
 | Admin `POST /api/v1/shows` (create show + seats) | Done |
 | `POST /api/v1/shows/{id}/reserve` (atomic, idempotent) | Done |
-| Cancel / GET show state                     | Planned |
+| `GET /api/v1/shows/{id}` (seat status + counts) | Done |
+| Cancel (owner)                              | Done |
 
 
 ## HTTP endpoints
@@ -27,6 +28,7 @@ A **high-concurrency seat reservation** system: Postgres for atomicity, idempote
 | `GET`  | `/healthz` | **Liveness** — process is up                                                            |
 | `GET`  | `/readyz`  | **Readiness** — pings Postgres                                                          |
 | `GET`  | `/metrics` | Prometheus scrape endpoint (`http_requests_total`, `http_request_duration_seconds`, …). |
+| `GET`  | `/api/v1/shows/{showID}` | **Public** — per-seat status + counts (`available` / `held` / `confirmed`). |
 | `POST` | `/api/v1/shows` | **Admin** — create show; header `X-Admin-Key` (see `ADMIN_API_KEY`). |
 | `POST` | `/api/v1/shows/{showID}/reserve` | **User bearer** — hold seats (`status: held`); `Idempotency-Key` header or body. |
 | `POST` | `/api/v1/reservations/{id}/confirm` | **Owner** — after payment → `confirmed`. |

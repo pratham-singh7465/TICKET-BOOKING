@@ -39,6 +39,7 @@ func NewRouter(
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.With(middleware.AdminKey(cfg.AdminAPIKey)).Post("/shows", shows.Create)
+		r.Get("/shows/{showID}", shows.Get)
 
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Authenticate(tokenValidator))

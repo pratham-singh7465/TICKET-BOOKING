@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/pratham-singh/ticket-booking/internal/show"
 )
 
@@ -36,6 +38,22 @@ type showResponse struct {
 	Seats        []seatResponse `json:"seats"`
 }
 
+type seatCountsResponse struct {
+	Available int `json:"available"`
+	Held      int `json:"held"`
+	Confirmed int `json:"confirmed"`
+	Total     int `json:"total"`
+}
+
+type showStateResponse struct {
+	ID           string             `json:"id"`
+	Name         string             `json:"name"`
+	PricePaise   int64              `json:"price_paise"`
+	PerUserLimit int                `json:"per_user_limit"`
+	Counts       seatCountsResponse `json:"counts"`
+	Seats        []seatResponse     `json:"seats"`
+}
+
 func (h *ShowHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createShowRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -57,6 +75,21 @@ func (h *ShowHandler) Create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, toShowResponse(created))
 }
 
+func (h *ShowHandler) Get(w http.ResponseWriter, r *http.Request) {
+	showID, err := uuid.Parse(chi.URLParam(r, "showID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid show id"})
+		return
+	}
+
+	state, err := h.svc.GetState(r.Context(), showID)
+	if err != nil {
+		mapShowError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toShowStateResponse(state))
+}
+
 func toShowResponse(s show.Show) showResponse {
 	seats := make([]seatResponse, len(s.Seats))
 	for i, seat := range s.Seats {
@@ -71,6 +104,23 @@ func toShowResponse(s show.Show) showResponse {
 		PricePaise:   s.PricePaise,
 		PerUserLimit: s.PerUserLimit,
 		Seats:        seats,
+	}
+}
+
+func toShowStateResponse(state show.ShowState) showStateResponse {
+	base := toShowResponse(state.Show)
+	return showStateResponse{
+		ID:           base.ID,
+		Name:         base.Name,
+		PricePaise:   base.PricePaise,
+		PerUserLimit: base.PerUserLimit,
+		Counts: seatCountsResponse{
+			Available: state.Counts.Available,
+			Held:      state.Counts.Held,
+			Confirmed: state.Counts.Confirmed,
+			Total:     state.Counts.Total,
+		},
+		Seats: base.Seats,
 	}
 }
 
